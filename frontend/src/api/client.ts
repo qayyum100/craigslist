@@ -2,7 +2,14 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+let API_URL = import.meta.env.VITE_API_URL || '';
+
+// Ensure URL ends with /api (without double slashes)
+if (API_URL && !API_URL.endsWith('/api')) {
+    API_URL = `${API_URL.replace(/\/$/, '')}/api`;
+} else if (!API_URL) {
+    API_URL = '/api';
+}
 
 export const api = axios.create({
     baseURL: API_URL,
