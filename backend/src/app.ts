@@ -11,6 +11,7 @@ import categoriesRoutes from './routes/categories';
 import bookmarksRoutes from './routes/bookmarks';
 import reportsRoutes from './routes/reports';
 import adminRoutes from './routes/admin';
+import chatRoutes from './routes/chat';
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/bookmarks', bookmarksRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chat', chatRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {

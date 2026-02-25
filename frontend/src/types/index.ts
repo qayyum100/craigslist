@@ -48,6 +48,30 @@ export interface Listing {
         icon?: string | null;
     };
     isBookmarked?: boolean;
+    condition?: string;
+    brand?: string | null;
+    year?: number | null;
+}
+
+export interface Conversation {
+    id: string;
+    listing_id: string;
+    buyer_id: string;
+    seller_id: string;
+    last_message: string | null;
+    updated_at: string;
+    unread_count?: number;
+    listings?: Listing;
+    buyer?: User;
+    seller?: User;
+}
+
+export interface Message {
+    id: string;
+    conversation_id: string;
+    sender_id: string;
+    text: string;
+    created_at: string;
 }
 
 export interface Bookmark {

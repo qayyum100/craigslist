@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, Plus, Search, Shield, LayoutDashboard, BookmarkIcon, LogOut, User } from 'lucide-react';
+import { Menu, X, Plus, Search, Shield, LayoutDashboard, BookmarkIcon, MessageSquare, LogOut, User } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/hooks/useAuth';
+import { useConversations } from '@/hooks/useChat';
 
 export const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -11,6 +12,9 @@ export const Navbar = () => {
     const { isAuthenticated, user } = useAuthStore();
     const logout = useLogout();
     const navigate = useNavigate();
+    const { data: conversations } = useConversations();
+
+    const totalUnread = conversations?.reduce((sum, conv) => sum + (conv.unread_count || 0), 0) || 0;
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -80,6 +84,17 @@ export const Navbar = () => {
                                                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
                                                 <BookmarkIcon className="h-4 w-4" /> Bookmarks
                                             </Link>
+                                            <Link to="/messages" onClick={() => setUserMenuOpen(false)}
+                                                className="flex items-center justify-between px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <MessageSquare className="h-4 w-4" /> Messages
+                                                </div>
+                                                {totalUnread > 0 && (
+                                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white shadow-lg shadow-brand-500/30">
+                                                        {totalUnread}
+                                                    </span>
+                                                )}
+                                            </Link>
                                             {user?.role === 'admin' && (
                                                 <Link to="/admin" onClick={() => setUserMenuOpen(false)}
                                                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
@@ -125,6 +140,16 @@ export const Navbar = () => {
                                 </Link>
                                 <Link to="/dashboard" onClick={() => setIsOpen(false)} className="block btn btn-ghost btn-md w-full justify-start">
                                     <LayoutDashboard className="h-4 w-4" /> Dashboard
+                                </Link>
+                                <Link to="/messages" onClick={() => setIsOpen(false)} className="flex items-center justify-between btn btn-ghost btn-md w-full">
+                                    <div className="flex items-center gap-3">
+                                        <MessageSquare className="h-4 w-4" /> Messages
+                                    </div>
+                                    {totalUnread > 0 && (
+                                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
+                                            {totalUnread}
+                                        </span>
+                                    )}
                                 </Link>
                                 {user?.role === 'admin' && (
                                     <Link to="/admin" onClick={() => setIsOpen(false)} className="block btn btn-ghost btn-md w-full justify-start">

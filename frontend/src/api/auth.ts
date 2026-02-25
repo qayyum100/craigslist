@@ -13,22 +13,22 @@ export interface RegisterPayload {
 
 export const authApi = {
     login: async (payload: LoginPayload) => {
-        const { data } = await api.post('/auth/login', payload);
+        const { data } = await api.post('auth/login', payload);
         return data;
     },
 
     register: async (payload: RegisterPayload) => {
-        const { data } = await api.post('/auth/register', payload);
+        const { data } = await api.post('auth/register', payload);
         return data;
     },
 
     getMe: async () => {
-        const { data } = await api.get('/auth/me');
+        const { data } = await api.get('auth/me');
         return data.user;
     },
 
     updateProfile: async (updates: { username?: string; avatar_url?: string }) => {
-        const { data } = await api.patch('/auth/me', updates);
+        const { data } = await api.patch('auth/me', updates);
         return data.user;
     },
 };

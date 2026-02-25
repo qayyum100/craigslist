@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { supabase } from '../config/supabase';
 
 const registerSchema = z.object({
@@ -13,6 +14,15 @@ const registerSchema = z.object({
 const loginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(1, 'Password is required'),
+});
+
+const forgotPasswordSchema = z.object({
+    email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+    token: z.string(),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 const signToken = (payload: object) =>
@@ -105,6 +115,100 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
             token,
             user: { id: profile.id, email: profile.email, username: profile.username, role: profile.role },
         });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { email } = forgotPasswordSchema.parse(req.body);
+
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .eq('email', email)
+            .maybeSingle();
+
+        if (error) {
+            next(error);
+            return;
+        }
+
+        if (!profile) {
+            // Return success anyway for security to prevent email enumeration
+            res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+            return;
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        const expires = new Date(Date.now() + 3600000); // 1 hour
+
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+                reset_token: hashedToken,
+                reset_token_expires: expires.toISOString(),
+            })
+            .eq('id', profile.id);
+
+        if (updateError) {
+            next(updateError);
+            return;
+        }
+
+        // IMPORTANT: In production, send this via email. For now, we return it for testing.
+        console.log(`Password reset token for ${email}: ${resetToken}`);
+
+        res.json({
+            message: 'If an account with that email exists, a password reset link has been sent.',
+            _debug_token: resetToken // Only for development convenience
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { token, password } = resetPasswordSchema.parse(req.body);
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('id, reset_token_expires')
+            .eq('reset_token', hashedToken)
+            .gt('reset_token_expires', new Date().toISOString())
+            .maybeSingle();
+
+        if (error) {
+            next(error);
+            return;
+        }
+
+        if (!profile) {
+            res.status(400).json({ error: 'Invalid or expired password reset token' });
+            return;
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+                password_hash: hashedPassword,
+                reset_token: null,
+                reset_token_expires: null,
+            })
+            .eq('id', profile.id);
+
+        if (updateError) {
+            next(updateError);
+            return;
+        }
+
+        res.json({ message: 'Password has been reset successfully' });
     } catch (err) {
         next(err);
     }

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, DollarSign, Eye, Clock, Edit, Trash2, Bookmark, BookmarkX, Flag, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { MapPin, DollarSign, Eye, Clock, Edit, Trash2, Bookmark, BookmarkX, Flag, ChevronLeft, ChevronRight, User, MessageCircle } from 'lucide-react';
 import { useListing, useDeleteListing } from '@/hooks/useListings';
 import { useAddBookmark, useRemoveBookmark } from '@/hooks/useBookmarks';
+import { useStartConversation } from '@/hooks/useChat';
 import { reportsApi } from '@/api/bookmarks';
 import { useAuthStore } from '@/store/authStore';
 import { PageLoader } from '@/components/common/LoadingSpinner';
+import { ChatWindow } from '@/components/chat/ChatWindow';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -17,6 +19,7 @@ export default function ListingDetail() {
     const [reportModal, setReportModal] = useState(false);
     const [reportReason, setReportReason] = useState('');
     const [reportLoading, setReportLoading] = useState(false);
+    const [chatConversation, setChatConversation] = useState<any>(null);
 
     const { data, isLoading, error } = useListing(id!);
     const listing = data?.listing;
@@ -24,6 +27,7 @@ export default function ListingDetail() {
     const addBookmark = useAddBookmark();
     const removeBookmark = useRemoveBookmark();
     const deleteListing = useDeleteListing();
+    const startConversation = useStartConversation();
 
     if (isLoading) return <PageLoader />;
     if (error || !listing) {
@@ -74,6 +78,17 @@ export default function ListingDetail() {
             toast.error(msg);
         } finally {
             setReportLoading(false);
+        }
+    };
+
+    const handleMessageSeller = async () => {
+        if (!isAuthenticated) { toast.error('Sign in to message the seller'); return; }
+        if (isOwner) { toast.error("You cannot message your own listing"); return; }
+        try {
+            const conversation = await startConversation.mutateAsync(listing.id);
+            setChatConversation(conversation);
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to start conversation');
         }
     };
 
@@ -132,7 +147,7 @@ export default function ListingDetail() {
                         </div>
                         {images.length > 1 && (
                             <div className="flex gap-2 p-3 overflow-x-auto">
-                                {images.map((img, i) => (
+                                {images.map((img: any, i: number) => (
                                     <button key={img.id} onClick={() => setCurrentImage(i)}
                                         className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${i === currentImage ? 'border-brand-500' : 'border-slate-700'}`}>
                                         <img src={img.url} alt="" className="w-full h-full object-cover" />
@@ -163,24 +178,47 @@ export default function ListingDetail() {
                             <p className="text-slate-500 italic mb-4">Price negotiable</p>
                         )}
 
-                        <div className="space-y-2.5 mb-6 text-sm text-slate-400">
+                        <div className="space-y-3 mb-6 text-sm text-slate-400">
                             <div className="flex items-center gap-2.5">
-                                <MapPin className="h-4 w-4 text-slate-500 shrink-0" />
-                                {listing.location}
+                                <MapPin className="h-4 w-4 text-brand-400 shrink-0" />
+                                <span className="text-slate-200">{listing.location}</span>
                             </div>
-                            <div className="flex items-center gap-2.5">
-                                <Clock className="h-4 w-4 text-slate-500 shrink-0" />
-                                Posted {formatDistanceToNow(new Date(listing.created_at), { addSuffix: true })}
+
+                            {/* Feature Badges */}
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                <div className="badge badge-blue">
+                                    Condition: {listing.condition || 'Good'}
+                                </div>
+                                {listing.brand && (
+                                    <div className="badge badge-slate bg-slate-800 border-slate-700">
+                                        Brand: {listing.brand}
+                                    </div>
+                                )}
+                                {listing.year && (
+                                    <div className="badge badge-slate bg-slate-800 border-slate-700">
+                                        Year: {listing.year}
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex items-center gap-2.5">
-                                <Eye className="h-4 w-4 text-slate-500 shrink-0" />
-                                {listing.views.toLocaleString()} views
+
+                            <div className="grid grid-cols-2 gap-y-2 pt-2 text-xs border-t border-slate-800/50 mt-4">
+                                <div className="flex items-center gap-2">
+                                    <Clock className="h-3.5 w-3.5 text-slate-500" />
+                                    <span>{formatDistanceToNow(new Date(listing.created_at), { addSuffix: true })}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Eye className="h-3.5 w-3.5 text-slate-500" />
+                                    <span>{listing.views.toLocaleString()} views</span>
+                                </div>
                             </div>
+
                             {listing.categories && (
-                                <Link to={`/listings?category=${listing.categories.slug}`}
-                                    className="inline-flex items-center gap-1.5 badge badge-slate hover:bg-slate-600 transition-colors">
-                                    {listing.categories.name}
-                                </Link>
+                                <div className="pt-2">
+                                    <Link to={`/listings?category=${listing.categories.slug}`}
+                                        className="inline-flex items-center gap-1.5 badge badge-slate hover:bg-slate-600 transition-colors">
+                                        {listing.categories.icon} {listing.categories.name}
+                                    </Link>
+                                </div>
                             )}
                         </div>
 
@@ -213,6 +251,10 @@ export default function ListingDetail() {
                                 </>
                             ) : (
                                 <>
+                                    <button onClick={handleMessageSeller} disabled={startConversation.isPending} className="btn btn-primary btn-md w-full py-3.5 mb-2">
+                                        <MessageCircle className="h-5 w-5" />
+                                        {startConversation.isPending ? 'Starting Chat...' : 'Message Seller'}
+                                    </button>
                                     <button onClick={handleBookmark} className="btn btn-secondary btn-md w-full">
                                         {listing.isBookmarked
                                             ? <><BookmarkX className="h-4 w-4" /> Remove Bookmark</>
@@ -230,6 +272,22 @@ export default function ListingDetail() {
                     </div>
                 </div>
             </div>
+
+            {/* Chat Modal */}
+            {chatConversation && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setChatConversation(null)} />
+                    <div className="relative w-full max-w-md animate-scale-in">
+                        <ChatWindow
+                            conversation={{
+                                ...chatConversation,
+                                seller: listing.profiles
+                            }}
+                            onClose={() => setChatConversation(null)}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Report Modal */}
             {reportModal && (

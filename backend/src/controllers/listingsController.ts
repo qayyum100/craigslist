@@ -9,6 +9,9 @@ const listingSchema = z.object({
     location: z.string().min(2).max(200),
     category_id: z.number().int().positive(),
     status: z.enum(['active', 'pending', 'sold']).optional().default('active'),
+    condition: z.enum(['New', 'Like New', 'Excellent', 'Good', 'Fair', 'Salvagable']).optional().default('Good'),
+    brand: z.string().max(100).optional().nullable(),
+    year: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional().nullable(),
 });
 
 const listingsQuerySchema = z.object({
@@ -31,7 +34,7 @@ export const getListings = async (req: Request, res: Response, next: NextFunctio
         let dbQuery = supabase
             .from('listings')
             .select(`
-        id, title, description, price, location, status, views, created_at, updated_at,
+        id, title, description, price, location, status, views, condition, brand, year, created_at, updated_at,
         user_id,
         profiles!listings_user_id_fkey(username, avatar_url),
         categories!listings_category_id_fkey(name, slug),
